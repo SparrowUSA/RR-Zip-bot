@@ -27,7 +27,7 @@
                 </iframe>
             </div>
             <p style="font-size: 0.8rem; color: #888; margin-top: 10px;">
-                Note: Video may take a few minutes to process before it starts playing.
+                Note: Bunny Stream is processing your video. It will play automatically once ready.
             </p>
         </div>
     </div>
@@ -48,7 +48,6 @@
         socket.onmessage = (event) => {
             const data = JSON.parse(event.data);
 
-            // Triggered when the bot peeks inside your ZIP
             if (data.type === "LIST_FILES") {
                 status.innerText = "ZIP Received!";
                 fileListDiv.style.display = 'block';
@@ -73,12 +72,12 @@
                 });
             }
 
-            // Triggered when Bunny finishes receiving the "Pipe"
             if (data.type === "STREAM_READY") {
                 status.innerText = "Streaming Ready!";
+                // Embed URL for Bunny Stream
                 videoPlayer.src = `https://iframe.mediadelivery.net/embed/${data.library_id}/${data.video_id}?autoplay=true`;
                 playerContainer.style.display = 'block';
-                fileListDiv.style.display = 'none'; // Hide list to focus on video
+                fileListDiv.style.display = 'none';
             }
         };
 

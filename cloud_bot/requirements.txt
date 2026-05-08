@@ -1,5 +1,7 @@
 telethon
 tgcrypto
+cryptg
 fastapi
 uvicorn
 python-dotenv
+httpx

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Private Lecture Vault</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Lecture Vault</h1>
+        <div class="input-group">
+            <input type="number" id="msgId" placeholder="Enter Telegram Message ID">
+            <button onclick="fetchFile()">Open Lecture</button>
+        </div>
+        
+        <div id="status" class="status-box">Ready.</div>
+
+        <div id="fileInfo" class="file-card" style="display: none;">
+            <h3 id="fileName">File Name</h3>
+            <p id="fileSize">Size: 0 MB</p>
+            <button class="stream-btn" onclick="startStream()">Start Streaming</button>
+        </div>
+    </div>
+
+    <script>
+        // UPDATE THIS LINK TO YOUR ACTUAL RENDER URL
+        const API_URL = "https://rr-zip-bot.onrender.com";
+
+        async function fetchFile() {
+            const id = document.getElementById('msgId').value;
+            const status = document.getElementById('status');
+            const infoBox = document.getElementById('fileInfo');
+
+            if (!id) return alert("Please enter a Message ID");
+
+            status.innerText = "Connecting to Render bot...";
+            
+            try {
+                const response = await fetch(`${API_URL}/list/${id}`);
+                const data = await response.json();
+
+                if (data.error) {
+                    status.innerText = "Error: " + data.error;
+                    infoBox.style.display = 'none';
+                } else {
+                    status.innerText = "File Found!";
+                    document.getElementById('fileName').innerText = data.file_name;
+                    document.getElementById('fileSize').innerText = `Size: ${data.size_mb} MB`;
+                    infoBox.style.display = 'block';
+                }
+            } catch (err) {
+                status.innerText = "Bot is sleeping or unreachable. Try again in 30 seconds.";
+                console.error(err);
+            }
+        }
+
+        function startStream() {
+            alert("Streaming logic initialized. This will link to your Bunny.net storage next!");
+        }
+    </script>
+</body>
+</html>

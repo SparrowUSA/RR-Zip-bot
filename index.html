@@ -9,55 +9,57 @@
 <body>
     <div class="container">
         <h1>Lecture Vault</h1>
-        <div class="input-group">
-            <input type="number" id="msgId" placeholder="Enter Telegram Message ID">
-            <button onclick="fetchFile()">Open Lecture</button>
-        </div>
-        
-        <div id="status" class="status-box">Ready.</div>
+        <div id="status" class="status-box">Connecting to backend...</div>
 
-        <div id="fileInfo" class="file-card" style="display: none;">
-            <h3 id="fileName">File Name</h3>
-            <p id="fileSize">Size: 0 MB</p>
-            <button class="stream-btn" onclick="startStream()">Start Streaming</button>
+        <div id="file-list" class="file-card" style="display: none;">
+            <h3>Files in ZIP</h3>
+            <div id="buttons-container"></div>
         </div>
     </div>
 
     <script>
-        // UPDATE THIS LINK TO YOUR ACTUAL RENDER URL
-        const API_URL = "https://rr-zip-bot.onrender.com";
+        // Update this to your actual Render URL (without https://)
+        const RENDER_DOMAIN = "rr-zip-bot.onrender.com";
+        const socket = new WebSocket(`wss://${RENDER_DOMAIN}/ws`);
+        const status = document.getElementById('status');
+        const fileListDiv = document.getElementById('file-list');
+        const buttonsContainer = document.getElementById('buttons-container');
 
-        async function fetchFile() {
-            const id = document.getElementById('msgId').value;
-            const status = document.getElementById('status');
-            const infoBox = document.getElementById('fileInfo');
+        socket.onopen = () => {
+            status.innerText = "✅ Connected. Forward a ZIP in Telegram!";
+        };
 
-            if (!id) return alert("Please enter a Message ID");
+        socket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
 
-            status.innerText = "Connecting to Render bot...";
-            
-            try {
-                const response = await fetch(`${API_URL}/list/${id}`);
-                const data = await response.json();
+            if (data.type === "LIST_FILES") {
+                status.innerText = "ZIP Detected!";
+                fileListDiv.style.display = 'block';
+                buttonsContainer.innerHTML = ""; // Clear old list
 
-                if (data.error) {
-                    status.innerText = "Error: " + data.error;
-                    infoBox.style.display = 'none';
-                } else {
-                    status.innerText = "File Found!";
-                    document.getElementById('fileName').innerText = data.file_name;
-                    document.getElementById('fileSize').innerText = `Size: ${data.size_mb} MB`;
-                    infoBox.style.display = 'block';
-                }
-            } catch (err) {
-                status.innerText = "Bot is sleeping or unreachable. Try again in 30 seconds.";
-                console.error(err);
+                data.files.forEach(file => {
+                    const btn = document.createElement('button');
+                    btn.className = "stream-btn";
+                    btn.style.marginTop = "10px";
+                    btn.innerText = `Upload ${file}`;
+                    
+                    btn.onclick = () => {
+                        btn.innerText = "⏳ Uploading to Bunny...";
+                        btn.disabled = true;
+                        socket.send(JSON.stringify({
+                            type: "SELECT_FILE",
+                            filename: file,
+                            msg_id: data.msg_id
+                        }));
+                    };
+                    buttonsContainer.appendChild(btn);
+                });
             }
-        }
+        };
 
-        function startStream() {
-            alert("Streaming logic initialized. This will link to your Bunny.net storage next!");
-        }
+        socket.onclose = () => {
+            status.innerText = "❌ Connection lost. Refresh to reconnect.";
+        };
     </script>
 </body>
 </html>

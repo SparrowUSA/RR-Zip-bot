@@ -27,14 +27,18 @@
                 </iframe>
             </div>
             <p style="font-size: 0.8rem; color: #888; margin-top: 10px;">
-                Note: Bunny Stream is processing your video. It will play automatically once ready.
+                Note: Video may take a minute to process before playing.
             </p>
         </div>
     </div>
 
     <script>
+        // CRITICAL: This must be EXACTLY your Render URL without https://
         const RENDER_DOMAIN = "rr-zip-bot.onrender.com";
+        
+        // Using wss:// ensures a secure WebSocket connection
         const socket = new WebSocket(`wss://${RENDER_DOMAIN}/ws`);
+        
         const status = document.getElementById('status');
         const fileListDiv = document.getElementById('file-list');
         const buttonsContainer = document.getElementById('buttons-container');
@@ -43,11 +47,13 @@
 
         socket.onopen = () => {
             status.innerText = "✅ Connected. Forward a ZIP to start.";
+            status.style.backgroundColor = "#d4edda"; // Light green
         };
 
         socket.onmessage = (event) => {
             const data = JSON.parse(event.data);
 
+            // Logic to show files inside the ZIP
             if (data.type === "LIST_FILES") {
                 status.innerText = "ZIP Received!";
                 fileListDiv.style.display = 'block';
@@ -60,7 +66,7 @@
                     btn.innerText = `Stream ${file}`;
                     
                     btn.onclick = () => {
-                        btn.innerText = "🚀 Processing...";
+                        btn.innerText = "🚀 Extracting & Uploading...";
                         btn.disabled = true;
                         socket.send(JSON.stringify({
                             type: "SELECT_FILE",
@@ -72,17 +78,23 @@
                 });
             }
 
+            // Logic to play the video once Bunny is ready
             if (data.type === "STREAM_READY") {
                 status.innerText = "Streaming Ready!";
-                // Embed URL for Bunny Stream
                 videoPlayer.src = `https://iframe.mediadelivery.net/embed/${data.library_id}/${data.video_id}?autoplay=true`;
                 playerContainer.style.display = 'block';
-                fileListDiv.style.display = 'none';
+                fileListDiv.style.display = 'none'; 
             }
         };
 
+        socket.onerror = (error) => {
+            status.innerText = "❌ Connection Error. Backend might be sleeping.";
+            status.style.backgroundColor = "#f8d7da"; // Light red
+        };
+
         socket.onclose = () => {
-            status.innerText = "❌ Offline. Refresh to reconnect.";
+            status.innerText = "❌ Offline. Refreshing might help.";
+            status.style.backgroundColor = "#f8d7da";
         };
     </script>
 </body>

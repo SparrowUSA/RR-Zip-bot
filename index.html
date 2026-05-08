@@ -3,99 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Private Lecture Vault</title>
+    <title>Lecture Vault</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <h1>Lecture Vault</h1>
-        <div id="status" class="status-box">Connecting to backend...</div>
+        <div id="status" class="status-box">Connecting...</div>
 
         <div id="file-list" class="file-card" style="display: none;">
-            <h3>Select Video to Stream</h3>
+            <h3>Select Video</h3>
             <div id="buttons-container"></div>
         </div>
 
         <div id="player-container" style="display:none; margin-top:20px;">
             <div style="position:relative; padding-top:56.25%;">
-                <iframe id="video-player" 
-                    src="" 
-                    loading="lazy" 
-                    style="border:0;position:absolute;top:0;left:0;width:100%;height:100%;" 
-                    allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;" 
-                    allowfullscreen="true">
-                </iframe>
+                <iframe id="video-player" src="" frameborder="0" style="position:absolute;top:0;left:0;width:100%;height:100%;" allowfullscreen></iframe>
             </div>
-            <p style="font-size: 0.8rem; color: #888; margin-top: 10px;">
-                Note: Video may take a minute to process before playing.
-            </p>
         </div>
     </div>
 
     <script>
-        // CRITICAL: This must be EXACTLY your Render URL without https://
-        const RENDER_DOMAIN = "rr-zip-bot.onrender.com";
-        
-        // Using wss:// ensures a secure WebSocket connection
-        const socket = new WebSocket(`wss://${RENDER_DOMAIN}/ws`);
-        
-        const status = document.getElementById('status');
-        const fileListDiv = document.getElementById('file-list');
-        const buttonsContainer = document.getElementById('buttons-container');
-        const playerContainer = document.getElementById('player-container');
-        const videoPlayer = document.getElementById('video-player');
+        const RENDER_URL = "rr-zip-bot.onrender.com";
+        let socket;
 
-        socket.onopen = () => {
-            status.innerText = "✅ Connected. Forward a ZIP to start.";
-            status.style.backgroundColor = "#d4edda"; // Light green
-        };
+        function connect() {
+            // "wss://" is mandatory for GitHub Pages
+            socket = new WebSocket(`wss://${RENDER_URL}/ws`);
 
-        socket.onmessage = (event) => {
-            const data = JSON.parse(event.data);
+            socket.onopen = () => {
+                document.getElementById('status').innerText = "✅ Connected";
+                document.getElementById('status').style.background = "#28a745";
+            };
 
-            // Logic to show files inside the ZIP
-            if (data.type === "LIST_FILES") {
-                status.innerText = "ZIP Received!";
-                fileListDiv.style.display = 'block';
-                buttonsContainer.innerHTML = ""; 
+            socket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.type === "LIST_FILES") {
+                    document.getElementById('file-list').style.display = 'block';
+                    const container = document.getElementById('buttons-container');
+                    container.innerHTML = "";
+                    data.files.forEach(file => {
+                        const btn = document.createElement('button');
+                        btn.innerText = `Stream ${file}`;
+                        btn.onclick = () => {
+                            btn.innerText = "Processing...";
+                            socket.send(JSON.stringify({type: "SELECT_FILE", filename: file, msg_id: data.msg_id}));
+                        };
+                        container.appendChild(btn);
+                    });
+                }
+                if (data.type === "STREAM_READY") {
+                    document.getElementById('video-player').src = `https://iframe.mediadelivery.net/embed/${data.library_id}/${data.video_id}?autoplay=true`;
+                    document.getElementById('player-container').style.display = 'block';
+                }
+            };
 
-                data.files.forEach(file => {
-                    const btn = document.createElement('button');
-                    btn.className = "stream-btn";
-                    btn.style.margin = "5px";
-                    btn.innerText = `Stream ${file}`;
-                    
-                    btn.onclick = () => {
-                        btn.innerText = "🚀 Extracting & Uploading...";
-                        btn.disabled = true;
-                        socket.send(JSON.stringify({
-                            type: "SELECT_FILE",
-                            filename: file,
-                            msg_id: data.msg_id
-                        }));
-                    };
-                    buttonsContainer.appendChild(btn);
-                });
-            }
+            socket.onclose = () => {
+                document.getElementById('status').innerText = "🔄 Reconnecting...";
+                setTimeout(connect, 3000); // Try again in 3 seconds
+            };
+        }
 
-            // Logic to play the video once Bunny is ready
-            if (data.type === "STREAM_READY") {
-                status.innerText = "Streaming Ready!";
-                videoPlayer.src = `https://iframe.mediadelivery.net/embed/${data.library_id}/${data.video_id}?autoplay=true`;
-                playerContainer.style.display = 'block';
-                fileListDiv.style.display = 'none'; 
-            }
-        };
-
-        socket.onerror = (error) => {
-            status.innerText = "❌ Connection Error. Backend might be sleeping.";
-            status.style.backgroundColor = "#f8d7da"; // Light red
-        };
-
-        socket.onclose = () => {
-            status.innerText = "❌ Offline. Refreshing might help.";
-            status.style.backgroundColor = "#f8d7da";
-        };
+        connect();
     </script>
 </body>
 </html>

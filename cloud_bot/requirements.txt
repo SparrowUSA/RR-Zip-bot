@@ -1,0 +1,5 @@
+telethon
+tgcrypto
+fastapi
+uvicorn
+python-dotenv

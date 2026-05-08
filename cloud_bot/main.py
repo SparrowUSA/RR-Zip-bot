@@ -5,13 +5,11 @@ from fastapi import FastAPI
 from telethon import TelegramClient
 from telethon.sessions import StringSession
 from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
 
-load_dotenv()
-
+# Initialize FastAPI
 app = FastAPI()
 
-# Allows your GitHub website to talk to this Northflank bot
+# Enable CORS so your GitHub website can talk to this Render bot
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -19,35 +17,42 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-API_ID = int(os.getenv("API_ID", 0))
-API_HASH = os.getenv("API_HASH", "")
-SESSION_STRING = os.getenv("SESSION_STRING", "")
+# Load variables from Render's Environment Settings
+API_ID = int(os.environ.get("API_ID", 0))
+API_HASH = os.environ.get("API_HASH", "")
+SESSION_STRING = os.environ.get("SESSION_STRING", "")
 
+# Initialize Telegram Client
 client = TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH)
 
 @app.on_event("startup")
 async def startup():
     await client.connect()
-    print("✅ Bot Connected to Telegram")
+    print("✅ Bot connected to Telegram via Render")
 
 @app.get("/")
-async def health_check():
-    return {"status": "running", "host": "northflank"}
+async def root():
+    return {"status": "Online", "platform": "Render", "memory_limit": "512MB"}
 
 @app.get("/list/{msg_id}")
 async def list_files(msg_id: int):
     try:
-        # Optimized memory cleanup before heavy task
+        # Aggressive memory cleanup for the 512MB limit
         gc.collect()
+        
         msg = await client.get_messages('me', ids=msg_id)
         if not msg or not msg.media:
-            return {"error": "No media found"}
+            return {"error": "No media found in this message ID"}
         
-        # Simplified for testing; adds Bunny.net logic here later
-        return {"file": msg.file.name, "size": msg.file.size}
+        return {
+            "file_name": msg.file.name,
+            "size_mb": round(msg.file.size / (1024 * 1024), 2)
+        }
     except Exception as e:
         return {"error": str(e)}
 
 if __name__ == "__main__":
+    # Render automatically assigns a PORT. We MUST use it.
     port = int(os.environ.get("PORT", 8080))
+    # Use 1 worker to keep RAM usage as low as possible
     uvicorn.run(app, host="0.0.0.0", port=port, workers=1)
